@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Env / secrets
+.env
+.env.local
+*.local
+
+# Data caches (nflverse downloads, exported snapshots)
+data/
+*.parquet
+*.csv.gz
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
