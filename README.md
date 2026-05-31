@@ -19,6 +19,8 @@ analytics/                Python analytics service (all the math)
     identity/resolver.py  Player identity resolver (Sleeper <-> nflverse <-> ADP)
     scoring/engine.py      League scoring engine (Phase 1)
     scoring/league.py      League settings model
+    valuation/engine.py    Replacement level + VORP (Phase 2)
+    valuation/tiers.py     Tier / cliff detection (Phase 2)
   scripts/                Ingestion entrypoints
   tests/                  Pytest suite (the gates live here)
 ```
@@ -31,8 +33,17 @@ analytics/                Python analytics service (all the math)
   - [x] nflverse loader (`nflreadpy`)
   - [x] Player identity resolver
   - [ ] Ingest 6 seasons of history + pass Gate 0
-- **Phase 1 — League model + scoring engine:** scaffolded
-  (`ffdraft/scoring/`), gate test pending real box-score fixtures.
+- **Phase 1 — League model + scoring engine:** built (`ffdraft/scoring/`); unit
+  gate passing, live decimal-match gate pending real box-score fixtures.
+- **Phase 2 — Valuation engine:** built (`ffdraft/valuation/`) —
+  flex-aware replacement levels, VORP, value-vs-ADP, tier/cliff detection. Unit
+  gates passing; the held-out Spearman + bootstrap-stability gate runs once
+  historical projections are ingested.
+
+The valuation engine needs no live league — it runs on historical projections
+with the confirmed full-PPR config, which is why Phases 2–4 can be built and
+backtested before Zev's league even exists. Only Phase 5 (live sync) and Phase 6
+(Zev model) require his league.
 
 ## Quick start (analytics service)
 
