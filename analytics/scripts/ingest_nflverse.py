@@ -42,7 +42,7 @@ def ingest_players(conn) -> int:
             gsis = r.get("gsis_id")
             if not gsis:
                 continue
-            name = r.get("full_name") or r.get("display_name")
+            name = r.get("full_name") or r.get("display_name") or r.get("name")
             cur.execute(
                 """
                 insert into ff.player (full_name, first_name, last_name, position, team, gsis_id)

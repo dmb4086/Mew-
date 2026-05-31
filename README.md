@@ -16,11 +16,14 @@ analytics/                Python analytics service (all the math)
     db.py                 Postgres connection helpers
     sleeper/client.py     Sleeper read-only API client
     nflverse/loader.py    nflreadpy historical-data loader
+    adp/ffc.py            Fantasy Football Calculator historical ADP loader
+    projections/          Internal preseason projection baseline
     identity/resolver.py  Player identity resolver (Sleeper <-> nflverse <-> ADP)
     scoring/engine.py      League scoring engine (Phase 1)
     scoring/league.py      League settings model
     valuation/engine.py    Replacement level + VORP (Phase 2)
     valuation/tiers.py     Tier / cliff detection (Phase 2)
+    simulator/engine.py    Snake draft Monte Carlo + availability (Phase 4)
   scripts/                Ingestion entrypoints
   tests/                  Pytest suite (the gates live here)
 ```
@@ -39,11 +42,18 @@ analytics/                Python analytics service (all the math)
   flex-aware replacement levels, VORP, value-vs-ADP, tier/cliff detection. Unit
   gates passing; the held-out Spearman + bootstrap-stability gate runs once
   historical projections are ingested.
+- **Phase 4 — Draft simulator + availability:** built (`ffdraft/simulator/`) —
+  snake order, ADP+noise opponent picks, per-player survival probability to your
+  next pick, and ranked pick scores from VORP + pass risk. Unit gates passing;
+  historical calibration waits on ingested draft boards.
+- **Real-data validation:** built (`scripts/validate_real_data.py`) — validates
+  nflverse scoring/totals, Fantasy Football Calculator ADP identity, and the
+  internal projection/VORP held-out gate against public historical data. See
+  `docs/VALIDATION.md`.
 
-The valuation engine needs no live league — it runs on historical projections
-with the confirmed full-PPR config, which is why Phases 2–4 can be built and
-backtested before Zev's league even exists. Only Phase 5 (live sync) and Phase 6
-(Zev model) require his league.
+The valuation and simulation engines need no live league — they run on
+historical or synthetic draft state with the confirmed full-PPR config. Only
+Phase 5 (live sync) and Phase 6 (Zev model) require his league.
 
 ## Quick start (analytics service)
 
@@ -60,6 +70,9 @@ psql "$DATABASE_URL" -f ../db/migrations/0001_phase0_schema.sql
 
 # Run tests (the gates)
 pytest
+
+# Run real-data validation (network required)
+PYTHONPATH=. python -m scripts.validate_real_data
 ```
 
 ## The one hard rule

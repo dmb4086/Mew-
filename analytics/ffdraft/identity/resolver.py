@@ -9,8 +9,8 @@ must map onto one canonical player. We resolve in priority order:
      give a name. Confidence < 1.0, and we record the method so the Gate-0
      hand-check can audit every fuzzy match.
 
-The crosswalk is `nflreadpy.load_players()`, exposed here as a list of dicts so
-the resolver is trivially testable without a network or database.
+The crosswalk is `nflreadpy.load_ff_playerids()`, exposed here as a list of dicts
+so the resolver is trivially testable without a network or database.
 """
 
 from __future__ import annotations
@@ -32,6 +32,13 @@ _NFLVERSE_ID_COLUMNS: dict[str, str] = {
 
 _SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
 
+_NAME_ALIASES = {
+    "chig okonkwo": "chigoziem okonkwo",
+    "gabe davis": "gabriel davis",
+    "hollywood brown": "marquise brown",
+    "jeff wilson": "jeffery wilson",
+}
+
 
 def normalize_name(name: str | None) -> str:
     """Lowercase, strip accents/punctuation/suffixes, collapse whitespace.
@@ -49,7 +56,8 @@ def normalize_name(name: str | None) -> str:
     name = re.sub(r"[.'`]", "", name)
     name = re.sub(r"[^a-z0-9\s]", " ", name)
     tokens = [t for t in name.split() if t and t not in _SUFFIXES]
-    return " ".join(tokens)
+    normalized = " ".join(tokens)
+    return _NAME_ALIASES.get(normalized, normalized)
 
 
 @dataclass(frozen=True)
@@ -68,7 +76,7 @@ class IdentityResolver:
     """Resolve external player records onto the nflverse crosswalk."""
 
     def __init__(self, crosswalk: list[dict], *, fuzzy_threshold: float = 88.0) -> None:
-        """`crosswalk`: rows from nflreadpy.load_players() as dicts. Needs at
+        """`crosswalk`: rows from nflreadpy.load_ff_playerids() as dicts. Needs at
         least `gsis_id`, `full_name`/`display_name`, `position`, plus any of the
         foreign-id columns in `_NFLVERSE_ID_COLUMNS`.
         """

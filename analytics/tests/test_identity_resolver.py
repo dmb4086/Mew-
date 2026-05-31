@@ -49,6 +49,13 @@ def test_normalize_name_handles_punct_accents_suffix():
     assert normalize_name(None) == ""
 
 
+def test_normalize_name_handles_common_adp_aliases():
+    assert normalize_name("Hollywood Brown") == "marquise brown"
+    assert normalize_name("Gabe Davis") == "gabriel davis"
+    assert normalize_name("Chig Okonkwo") == "chigoziem okonkwo"
+    assert normalize_name("Jeff Wilson Jr.") == "jeffery wilson"
+
+
 def test_exact_id_key_resolution(crosswalk):
     r = IdentityResolver(crosswalk)
     res = r.resolve(source="sleeper", source_id="6794", name="Ja'Marr Chase", position="WR")

@@ -38,7 +38,7 @@ def load_weekly_stats(seasons: list[int]) -> pl.DataFrame:
 def load_seasonal_stats(seasons: list[int]) -> pl.DataFrame:
     """Season-aggregated player stats for the given seasons."""
     nfl = _import_nflreadpy()
-    df = nfl.load_player_stats(seasons=seasons, summary_level="season")
+    df = nfl.load_player_stats(seasons=seasons, summary_level="reg")
     return _ensure_polars(df)
 
 
@@ -48,7 +48,7 @@ def load_player_ids() -> pl.DataFrame:
     resolver matches everything else against.
     """
     nfl = _import_nflreadpy()
-    df = nfl.load_players()
+    df = nfl.load_ff_playerids()
     return _ensure_polars(df)
 
 

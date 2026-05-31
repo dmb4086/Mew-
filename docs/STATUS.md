@@ -12,8 +12,12 @@ numeric green-light gates; this doc tracks execution against it.
 
 - We are building a deterministic fantasy-draft copilot. **Math decides, the LLM
   only explains.** Every phase has a numeric gate — no "looks right to me."
-- **Phases 0, 1, 2 are built and unit-tested** (19 tests, all green, no network
+- **Phases 0, 1, 2, 4 are built and unit-tested** (30 tests, all green, no network
   or DB required). Run them with `cd analytics && PYTHONPATH=. python -m pytest`.
+- A real-data validator now checks public historical data; latest run validated
+  2019-2024 nflverse scoring/totals and resolved 1,028/1,028 historical ADP
+  records. It also validates the internal projection baseline: VORP beats raw
+  projected points in 6/6 held-out seasons. See [`VALIDATION.md`](VALIDATION.md).
 - The whole **edge-producing core (valuation, simulation, backtest) runs on
   historical data** and does NOT need the live league. Only Phase 5 (live sync)
   and Phase 6 (Zev model) require Zev's Sleeper league, which doesn't exist yet.
@@ -27,11 +31,11 @@ numeric green-light gates; this doc tracks execution against it.
 
 | Phase | Status | Where | Gate status |
 |------|--------|-------|-------------|
-| 0 — Data spine + identity | **Code built**; live ingest not yet run | `db/migrations/0001_phase0_schema.sql`, `ffdraft/identity/`, `ffdraft/sleeper/`, `ffdraft/nflverse/`, `scripts/` | Unit tests pass. Live gate (≥99% top-300 resolve; reconstruct a past season's top-100 totals) **pending DB + ingestion run**. |
-| 1 — League model + scoring | **Built** | `ffdraft/scoring/` | Unit gate passes. **Live decimal-match gate pending** real box-score fixtures. |
-| 2 — Valuation engine | **Built** | `ffdraft/valuation/` | Unit gates pass. **Held-out Spearman + bootstrap-stability gate pending** ingested projections. |
-| 3 — Backtest harness | Not started | — | Blocked on historical ADP (see Data dependencies). |
-| 4 — Draft simulator + availability | Not started | — | Buildable now, no external data. |
+| 0 — Data spine + identity | **Code built**; live ingest not yet run | `db/migrations/0001_phase0_schema.sql`, `ffdraft/identity/`, `ffdraft/sleeper/`, `ffdraft/nflverse/`, `scripts/` | Unit tests pass. Real-data validator resolves 1,028/1,028 FFC ADP records and recomputes top-100 season totals exactly. **DB ingestion run still pending**. |
+| 1 — League model + scoring | **Built** | `ffdraft/scoring/` | Unit gate passes. Real-data validator reproduces 105,480 nflverse PPR weekly rows exactly. **Live Sleeper decimal-match gate pending** real league settings. |
+| 2 — Valuation engine | **Built** | `ffdraft/valuation/`, `ffdraft/projections/` | Unit gates pass. Held-out Spearman gate passes with internal projections (6/6 seasons). **Tier bootstrap-stability gate pending**. |
+| 3 — Backtest harness | Not started | — | Historical ADP + internal projection baseline available; needs full draft/roster harness. |
+| 4 — Draft simulator + availability | **Built** | `ffdraft/simulator/` | Unit gates pass. **Historical calibration gate pending** draft-history ingestion. |
 | 5 — Live copilot + LLM advisor + UI | Not started | — | Needs live Sleeper league. Advisor/tools can be built against synthetic state first. |
 | 6 — Zev model | Not started | — | Needs Zev's past drafts. |
 | 7 — News / in-season | Deferred (post-draft) | — | Intentionally last. |
@@ -40,9 +44,15 @@ numeric green-light gates; this doc tracks execution against it.
 ```bash
 cd analytics
 pip install -e ".[dev]"          # or: pip install pytest rapidfuzz python-dotenv pydantic
-PYTHONPATH=. python -m pytest     # 19 tests, all green
+PYTHONPATH=. python -m pytest     # 30 tests, all green
 ```
 The tests ARE the gates. They run with zero network/DB.
+
+Real-data validator:
+```bash
+cd analytics
+PYTHONPATH=. python -m scripts.validate_real_data
+```
 
 ---
 
@@ -69,10 +79,16 @@ The tests ARE the gates. They run with zero network/DB.
   Needs a network-enabled run + a Postgres/Supabase instance. Unblocks Phase 0
   live gate and Phase 1 live gate (nflverse weekly data carries a
   `fantasy_points_ppr` column we can reproduce to the decimal).
-- **Historical ADP** (the market baseline Phase 3 must beat): NOT in nflverse.
-  Needs a source we have rights to (model our own, or a licensed feed —
-  FantasyPros etc. have ToS constraints). **This is the gating dependency for
-  Phase 3.**
+- **Historical ADP** (the market baseline Phase 3 must beat): source identified
+  as Fantasy Football Calculator's ADP REST API, with attribution. The loader is
+  in `ffdraft/adp/ffc.py`, and 2019-2024 PPR ADP identity validation passes.
+- **Historical preseason projections / ECR / platform rankings:** no clean free
+  multi-season feed was found that should be baked into this repo. FantasyPros
+  has an API but requires approval and carries restricted terms; paid feeds
+  exist. We built an internal baseline from prior nflverse production + FFC ADP
+  in `ffdraft/projections/baseline.py`.
+- **Historical draft boards:** still needed for Phase 4 availability calibration;
+  ADP tables alone do not prove survival-probability calibration.
 
 ---
 
@@ -80,25 +96,21 @@ The tests ARE the gates. They run with zero network/DB.
 
 These are ordered so nothing waits on the live league.
 
-1. **Phase 4 — draft simulator + availability model.** Highest value, zero
-   external data. Build a Monte Carlo of the rest of the draft with ADP+noise
-   opponents, a per-candidate "probability survives to my next pick," and a
-   `score_pick(value, availability)`. Suggested location:
-   `ffdraft/simulator/`. Determinism: seed from `settings.random_seed`.
-   Gate (Phase 4): reliability curve + Brier score on historical drafts — wire
-   the calibration test as soon as draft history is ingested.
+1. **Build Phase 3 full draft/roster backtest harness.** Historical ADP and an
+   internal preseason projection baseline are now available. Next, simulate
+   draft strategies (ADP-only vs. VORP/simulator-driven), build rosters, and
+   score starter points against actual season outcomes.
 2. **Run live ingestion (Phase 0/1 live gates).** Stand up Supabase, apply
    `db/migrations/0001_phase0_schema.sql`, run `scripts/ingest_nflverse.py`,
    then add a scoring-gate test that reproduces nflverse `fantasy_points_ppr`
    from raw stats to the decimal.
-3. **Source historical ADP**, then build **Phase 3 backtest harness** — the
-   trust gate. Strategies to pit: ADP-only, ECR-only, platform-rankings,
-   zero-RB, our VORP model. Bar: beat ADP-only & ECR-only on starter-points in
-   ≥4 of 6 leave-one-out seasons and win >55% of head-to-head sims.
-4. **Phase 5 advisor scaffolding against synthetic draft state** — define the
-   typed Recommendation Object and the tool interfaces (`getDraftState`,
-   `getPlayerCard`, `comparePlayers`, `simulateDraft`, `recommendPick`,
-   `explainRecommendation`) before the live league exists.
+3. **Wire Phase 4 into the Recommendation Object shape.** The simulator now
+   emits per-player survival odds and ranked pick scores from VORP +
+   availability risk. Define the typed object and tool interfaces that Phase 5's
+   LLM advisor will consume, still against synthetic draft state.
+4. **Phase 4 calibration gate** — once historical draft boards are ingested,
+   bucket survival predictions and calculate the reliability curve + Brier score
+   promised in `VISION.md`.
 
 ## Conventions for contributors
 
