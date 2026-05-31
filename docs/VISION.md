@@ -171,8 +171,18 @@ deadline.
 
 ## Open questions to lock Phase 0
 
-1. **What platform is Zev's league on** — Sleeper, ESPN, or Yahoo?
-2. **The exact league settings** — scoring (PPR/half/standard), roster slots, and
-   especially whether it's Superflex/2QB or TE-premium.
-3. **Can we get the league's past drafts** (and ideally Zev's specifically)?
-4. **Confirm the draft date** so we can put real dates on the calendar.
+1. ✅ **Platform: Sleeper.** Read-only, no-auth API — the fast path. Confirmed.
+2. ✅ **Scoring: full PPR, standard roster.** Not Superflex, not TE-premium. This
+   matches `SLEEPER_DEFAULT_PPR` in `ffdraft/scoring/league.py` exactly (1.0
+   pt/reception, 4pt pass TD, 6pt rush/rec TD, standard QB/RB/RB/WR/WR/TE/FLEX).
+   The real league's `scoring_settings` will be pulled via API and is the source
+   of truth that feeds the Phase 1 decimal-match gate.
+3. ⏳ **Past drafts** (and ideally Zev's specifically) — needed for the Phase 6
+   Zev model. Available for free via the Sleeper API once we have the league ID;
+   previous seasons are reachable through the league's `previous_league_id` chain.
+4. ⏳ **Draft date** — still needed to put real dates on the calendar.
+
+**Next concrete step:** provide the Sleeper **league ID** (or a manager username —
+we can resolve leagues from `/user/{username}/leagues/nfl/{season}`). That single
+value unlocks live settings ingestion, past-draft history, and the real Phase 1
+scoring gate against actual box scores.
