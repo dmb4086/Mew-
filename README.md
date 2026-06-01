@@ -23,8 +23,9 @@ analytics/                Python analytics service (all the math)
     scoring/league.py      League settings model
     valuation/engine.py    Replacement level + VORP (Phase 2)
     valuation/tiers.py     Tier / cliff detection (Phase 2)
+    backtest/              Historical draft/roster backtest harness (Phase 3)
     simulator/engine.py    Snake draft Monte Carlo + availability (Phase 4)
-  scripts/                Ingestion entrypoints
+  scripts/                Ingestion, validation, and edge-lab entrypoints
   tests/                  Pytest suite (the gates live here)
 ```
 
@@ -42,6 +43,13 @@ analytics/                Python analytics service (all the math)
   flex-aware replacement levels, VORP, value-vs-ADP, tier/cliff detection. Unit
   gates passing; the held-out Spearman + bootstrap-stability gate runs once
   historical projections are ingested.
+- **Phase 3 — Backtest harness:** built (`ffdraft/backtest/`,
+  `scripts/backtest_phase3.py`) — compares model drafting vs ADP-only in
+  matched historical rooms. Current strategy passes the original trust gate.
+- **Edge Lab:** built (`scripts/edge_lab.py`) — stricter benchmark gauntlet
+  comparing VALUE against ADP, ADP with the same roster guardrails, pure VORP,
+  and VALUE without guardrails. Current `value_market_rb` candidate beats
+  `adp_guard` across 1,800 matched drafts.
 - **Phase 4 — Draft simulator + availability:** built (`ffdraft/simulator/`) —
   snake order, ADP+noise opponent picks, per-player survival probability to your
   next pick, and ranked pick scores from VORP + pass risk. Unit gates passing;
@@ -73,6 +81,9 @@ pytest
 
 # Run real-data validation (network required)
 PYTHONPATH=. python -m scripts.validate_real_data
+
+# Run the stricter edge benchmark (network required)
+PYTHONPATH=. python -m scripts.edge_lab --seeds-per-slot 25 --enforce-edge
 ```
 
 ## The one hard rule

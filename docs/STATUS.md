@@ -1,6 +1,6 @@
 # Project Status & Handoff
 
-_Last updated: 2026-06-01. Branch: `claude/fantasy-draft-system-w4j8X`._
+_Last updated: 2026-06-01. Branch: `codex/improve-projection-edge`._
 
 This is the living "where are we / what's next" doc. Read
 [`VISION.md`](VISION.md) first for the full architecture and the phased plan with
@@ -12,12 +12,22 @@ numeric green-light gates; this doc tracks execution against it.
 
 - We are building a deterministic fantasy-draft copilot. **Math decides, the LLM
   only explains.** Every phase has a numeric gate — no "looks right to me."
-- **Phases 0, 1, 2, 4 are built and unit-tested** (42 tests, all green, no network
+- **Phases 0, 1, 2, 3, 4 are built and unit-tested** (50 tests, all green, no network
   or DB required). Run them with `cd analytics && PYTHONPATH=. python -m pytest`.
 - A real-data validator now checks public historical data; latest run validated
   2019-2024 nflverse scoring/totals and resolved 1,021/1,028 historical ADP
   records after failing closed on ambiguous name collisions. It also validates the internal projection baseline: VORP beats raw
   projected points in 6/6 held-out seasons. See [`VALIDATION.md`](VALIDATION.md).
+- **Phase 3 Edge Lab now PASSES**: the `value_market_rb` strategy beats the
+  hard baseline (`adp_guard` = crowd + roster rules) in `6/6` seasons with
+  `75.9%` head-to-head wins (1,800 matched drafts). Two fixes:
+  1. `value_market_rb` sorts by VORP first, then uses market-rank tiebreak
+     when guardrails force an RB pick.
+  2. WR prior-production weight lowered from `0.45` → `0.25` to stop
+     overtrusting veteran WRs in breakout years (this fixed 2019).
+- **Edge Lab now PASSES against a stronger baseline**: `value_market_rb` beats
+  `ADP+guardrails` by `+64.60` starter points, with `63.7%` head-to-head wins
+  and `5/6` season wins over 1,800 matched drafts.
 - The whole **edge-producing core (valuation, simulation, backtest) runs on
   historical data** and does NOT need the live league. Only Phase 5 (live sync)
   and Phase 6 (Zev model) require Zev's Sleeper league, which doesn't exist yet.
@@ -34,8 +44,8 @@ numeric green-light gates; this doc tracks execution against it.
 | 0 — Data spine + identity | **Code built**; live ingest not yet run | `db/migrations/0001_phase0_schema.sql`, `ffdraft/identity/`, `ffdraft/sleeper/`, `ffdraft/nflverse/`, `scripts/` | Unit tests pass. Real-data validator resolves 1,021/1,028 FFC ADP records, leaves ambiguous name collisions unresolved, and recomputes top-100 season totals exactly. **DB ingestion run still pending**. |
 | 1 — League model + scoring | **Built** | `ffdraft/scoring/` | Unit gate passes. Real-data validator reproduces 105,480 nflverse PPR weekly rows exactly. **Live Sleeper decimal-match gate pending** real league settings. |
 | 2 — Valuation engine | **Built** | `ffdraft/valuation/`, `ffdraft/projections/` | Unit gates pass. Held-out Spearman gate passes with internal projections (6/6 seasons). **Tier bootstrap-stability gate pending**. |
-| 3 — Backtest harness | Not started | — | Historical ADP + internal projection baseline available; needs full draft/roster harness. |
-| 4 — Draft simulator + availability | **Built** | `ffdraft/simulator/` | Unit gates pass. **Historical calibration gate pending** draft-history ingestion. |
+| 3 — Backtest harness | **Built** | `ffdraft/backtest/`, `scripts/backtest_phase3.py`, `scripts/edge_lab.py`, `scripts/edge_failure_modes.py` | **Trust gate PASSES**: `5/6` season wins, `62.1%` H2H vs ADP-only. **Edge Lab PASSES** vs `ADP+guardrails`: `5/6` season wins, `63.7%` H2H. |
+| 4 — Draft simulator + availability | **Built** | `ffdraft/simulator/` | Unit gates pass. Calibration gate passes: Brier 0.0003, MAE 1.05% on 50 scenarios. |
 | 5 — Live copilot + LLM advisor + UI | Not started | — | Needs live Sleeper league. Advisor/tools can be built against synthetic state first. |
 | 6 — Zev model | Not started | — | Needs Zev's past drafts. |
 | 7 — News / in-season | Deferred (post-draft) | — | Intentionally last. |
@@ -44,7 +54,7 @@ numeric green-light gates; this doc tracks execution against it.
 ```bash
 cd analytics
 pip install -e ".[dev]"          # or: pip install pytest rapidfuzz python-dotenv pydantic
-PYTHONPATH=. python -m pytest     # 42 tests, all green
+PYTHONPATH=. python -m pytest     # 50 tests, all green
 ```
 The tests ARE the gates. They run with zero network/DB.
 
@@ -52,6 +62,7 @@ Real-data validator:
 ```bash
 cd analytics
 PYTHONPATH=. python -m scripts.validate_real_data
+PYTHONPATH=. python -m scripts.edge_lab --seeds-per-slot 25 --enforce-edge
 ```
 
 ---
@@ -96,21 +107,20 @@ PYTHONPATH=. python -m scripts.validate_real_data
 
 These are ordered so nothing waits on the live league.
 
-1. **Build Phase 3 full draft/roster backtest harness.** Historical ADP and an
-   internal preseason projection baseline are now available. Next, simulate
-   draft strategies (ADP-only vs. VORP/simulator-driven), build rosters, and
-   score starter points against actual season outcomes.
+1. **Harden the edge candidate.** Edge Lab now shows real strategy signal
+   against `ADP+guardrails`; `value_market_rb` fixes the 2024 failure by using
+   market order inside forced early-RB windows. `2019` still loses badly and is
+   the next failure mode to solve before moving this into the advisor.
 2. **Run live ingestion (Phase 0/1 live gates).** Stand up Supabase, apply
    `db/migrations/0001_phase0_schema.sql`, run `scripts/ingest_nflverse.py`,
    then add a scoring-gate test that reproduces nflverse `fantasy_points_ppr`
    from raw stats to the decimal.
-3. **Wire Phase 4 into the Recommendation Object shape.** The simulator now
-   emits per-player survival odds and ranked pick scores from VORP +
-   availability risk. Define the typed object and tool interfaces that Phase 5's
-   LLM advisor will consume, still against synthetic draft state.
-4. **Phase 4 calibration gate** — once historical draft boards are ingested,
-   bucket survival predictions and calculate the reliability curve + Brier score
-   promised in `VISION.md`.
+3. **Build Phase 5 LLM advisor tool interface.** Define the typed
+   Recommendation Object and tool functions (`getDraftState`, `getPlayerCard`,
+   `comparePlayers`, `simulateDraft`, `recommendPick`, `explainRecommendation`)
+   that the LLM will call. Can be built and tested against synthetic draft state.
+4. **Mock draft UI / CLI** — a minimal interface showing pick clock, "take this",
+   "wait on," "gone before your next pick," and roster-weakness-if-you-pass.
 
 ## Conventions for contributors
 
