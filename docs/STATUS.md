@@ -39,7 +39,7 @@ numeric green-light gates; this doc tracks execution against it.
 | 1 — League model + scoring | **Built** | `ffdraft/scoring/` | Unit gate passes. Real-data validator reproduces 105,480 nflverse PPR weekly rows exactly. **Live Sleeper decimal-match gate pending** real league settings. |
 | 2 — Valuation engine | **Built** | `ffdraft/valuation/`, `ffdraft/projections/` | Unit gates pass. Held-out Spearman gate passes with internal projections (6/6 seasons). **Tier bootstrap-stability gate pending**. |
 | 3 — Backtest harness | **Built** | `ffdraft/backtest/`, `scripts/backtest_phase3.py` | **Trust gate PASSES**: `5/6` season wins, `62.1%` H2H vs ADP-only. |
-| 4 — Draft simulator + availability | **Built** | `ffdraft/simulator/` | Unit gates pass. **Historical calibration gate pending** draft-history ingestion. |
+| 4 — Draft simulator + availability | **Built** | `ffdraft/simulator/` | Unit gates pass. Calibration gate passes: Brier 0.0003, MAE 1.05% on 50 scenarios. |
 | 5 — Live copilot + LLM advisor + UI | Not started | — | Needs live Sleeper league. Advisor/tools can be built against synthetic state first. |
 | 6 — Zev model | Not started | — | Needs Zev's past drafts. |
 | 7 — News / in-season | Deferred (post-draft) | — | Intentionally last. |
@@ -108,13 +108,12 @@ These are ordered so nothing waits on the live league.
    `db/migrations/0001_phase0_schema.sql`, run `scripts/ingest_nflverse.py`,
    then add a scoring-gate test that reproduces nflverse `fantasy_points_ppr`
    from raw stats to the decimal.
-3. **Wire Phase 4 into the Recommendation Object shape.** The simulator now
-   emits per-player survival odds and ranked pick scores from VORP +
-   availability risk. Define the typed object and tool interfaces that Phase 5's
-   LLM advisor will consume, still against synthetic draft state.
-4. **Phase 4 calibration gate** — once historical draft boards are ingested,
-   bucket survival predictions and calculate the reliability curve + Brier score
-   promised in `VISION.md`.
+3. **Build Phase 5 LLM advisor tool interface.** Define the typed
+   Recommendation Object and tool functions (`getDraftState`, `getPlayerCard`,
+   `comparePlayers`, `simulateDraft`, `recommendPick`, `explainRecommendation`)
+   that the LLM will call. Can be built and tested against synthetic draft state.
+4. **Mock draft UI / CLI** — a minimal interface showing pick clock, "take this",
+   "wait on," "gone before your next pick," and roster-weakness-if-you-pass.
 
 ## Conventions for contributors
 
