@@ -23,6 +23,7 @@ analytics/                Python analytics service (all the math)
     scoring/league.py      League settings model
     valuation/engine.py    Replacement level + VORP (Phase 2)
     valuation/tiers.py     Tier / cliff detection (Phase 2)
+    backtest/              Historical draft/roster backtest harness (Phase 3)
     simulator/engine.py    Snake draft Monte Carlo + availability (Phase 4)
   scripts/                Ingestion entrypoints
   tests/                  Pytest suite (the gates live here)
@@ -42,6 +43,10 @@ analytics/                Python analytics service (all the math)
   flex-aware replacement levels, VORP, value-vs-ADP, tier/cliff detection. Unit
   gates passing; the held-out Spearman + bootstrap-stability gate runs once
   historical projections are ingested.
+- **Phase 3 — Backtest harness:** built (`ffdraft/backtest/`,
+  `scripts/backtest_phase3.py`) — compares model drafting vs ADP-only in
+  matched historical rooms. Current internal-projection model fails the trust
+  gate, which means projection/strategy quality needs work before Phase 4/5.
 - **Phase 4 — Draft simulator + availability:** built (`ffdraft/simulator/`) —
   snake order, ADP+noise opponent picks, per-player survival probability to your
   next pick, and ranked pick scores from VORP + pass risk. Unit gates passing;
