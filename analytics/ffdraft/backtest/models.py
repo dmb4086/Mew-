@@ -5,7 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-DraftStrategy = Literal["adp", "vorp", "value"]
+DraftStrategy = Literal[
+    "adp",
+    "adp_guard",
+    "vorp",
+    "value_no_guard",
+    "value",
+    "value_market_rb",
+]
 
 
 @dataclass(frozen=True)

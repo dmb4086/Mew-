@@ -90,6 +90,88 @@ def test_value_strategy_waits_on_vorp_that_market_expects_to_survive():
     assert patient_roster.player_ids[0] == "p1"
 
 
+def test_adp_guard_gets_same_early_rb_guardrail_as_value_strategy():
+    board = [
+        _player(1, pos="WR", vorp=50.0, adp=1.0),
+        _player(2, pos="RB", vorp=10.0, adp=2.0),
+    ]
+
+    plain_adp = simulate_strategy_draft(
+        board,
+        strategy="adp",
+        user_slot=1,
+        num_teams=12,
+        rounds=10,
+        opponent_noise_stdev=0.0,
+    )
+    guarded_adp = simulate_strategy_draft(
+        board,
+        strategy="adp_guard",
+        user_slot=1,
+        num_teams=12,
+        rounds=10,
+        opponent_noise_stdev=0.0,
+    )
+
+    assert plain_adp.player_ids[0] == "p1"
+    assert guarded_adp.player_ids[0] == "p2"
+
+
+def test_value_no_guard_is_a_true_ablation_of_roster_guardrails():
+    board = [
+        _player(1, pos="WR", vorp=50.0, adp=1.0),
+        _player(2, pos="RB", vorp=10.0, adp=2.0),
+    ]
+
+    unguarded = simulate_strategy_draft(
+        board,
+        strategy="value_no_guard",
+        user_slot=1,
+        num_teams=12,
+        rounds=10,
+        opponent_noise_stdev=0.0,
+    )
+    guarded = simulate_strategy_draft(
+        board,
+        strategy="value",
+        user_slot=1,
+        num_teams=12,
+        rounds=10,
+        opponent_noise_stdev=0.0,
+    )
+
+    assert unguarded.player_ids[0] == "p1"
+    assert guarded.player_ids[0] == "p2"
+
+
+def test_value_market_rb_uses_market_order_inside_forced_rb_guardrail():
+    board = [
+        _player(1, pos="RB", vorp=10.0, adp=1.0),
+        _player(2, pos="RB", vorp=50.0, adp=2.0),
+        _player(3, pos="WR", vorp=60.0, adp=3.0),
+    ]
+
+    value = simulate_strategy_draft(
+        board,
+        strategy="value",
+        user_slot=1,
+        num_teams=12,
+        rounds=10,
+        opponent_noise_stdev=0.0,
+    )
+    anchored = simulate_strategy_draft(
+        board,
+        strategy="value_market_rb",
+        user_slot=1,
+        num_teams=12,
+        rounds=10,
+        opponent_noise_stdev=0.0,
+    )
+
+    assert value.player_ids[0] == "p2"
+    assert anchored.player_ids[0] == "p1"
+
+
 def test_score_roster_starters_uses_best_legal_lineup():
     board = [
         _player(1, pos="QB", vorp=1, adp=1),

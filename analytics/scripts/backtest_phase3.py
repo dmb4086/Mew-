@@ -33,7 +33,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--rounds", type=int, default=12)
     parser.add_argument("--teams", type=int, default=12)
     parser.add_argument("--opponent-noise", type=float, default=8.0)
-    parser.add_argument("--strategy", choices=["vorp", "value"], default="value")
+    parser.add_argument(
+        "--strategy",
+        choices=["vorp", "value_no_guard", "value", "value_market_rb"],
+        default="value",
+    )
     parser.add_argument("--enforce-gate", action="store_true")
     return parser.parse_args()
 

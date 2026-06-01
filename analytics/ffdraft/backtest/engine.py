@@ -197,17 +197,9 @@ def _choose_player(
         return None
 
     if strategy == "vorp":
-        return max(
-            legal,
-            key=lambda player: (
-                player.vorp,
-                player.proj_points,
-                -(player.adp or 999.0),
-                player.player_id,
-            ),
-        ).player_id
+        return _select_by_vorp(legal).player_id
 
-    if strategy == "value":
+    if strategy in {"value", "value_no_guard", "value_market_rb"}:
         next_pick = next_pick_for_team(
             current_pick=overall_pick,
             team_slot=team_slot,
@@ -227,70 +219,40 @@ def _choose_player(
                 if _market_rank(player) <= next_pick
             ] or legal
 
-        # Positional roster-construction guardrails: avoid degenerate rosters
-        # by forcing minimum RB picks early. This compensates for the fact
-        # that our internal projections systematically undervalue RBs vs ADP
-        # in some years (2019, 2024).
-        current_round = (overall_pick - 1) // num_teams + 1
-        rb_count = _selected_position_count(roster_player_ids, player_by_id, "RB")
-        te_count = _selected_position_count(roster_player_ids, player_by_id, "TE")
+        if strategy in {"value", "value_market_rb"}:
+            guarded_candidates = _apply_roster_guardrails(
+                candidates,
+                roster_player_ids,
+                player_by_id=player_by_id,
+                overall_pick=overall_pick,
+                num_teams=num_teams,
+                rounds=rounds,
+            )
+            if (
+                strategy == "value_market_rb"
+                and guarded_candidates is not candidates
+                and guarded_candidates
+                and all(player.position == "RB" for player in guarded_candidates)
+            ):
+                return min(
+                    guarded_candidates,
+                    key=lambda player: (_market_rank(player), player.player_id),
+                ).player_id
+            candidates = guarded_candidates
 
-        # Scale guardrails to draft size (calibrated for 12-team, 12-round).
-        # Only apply in realistic-sized drafts (>= 8 teams, >= 10 rounds).
-        if num_teams >= 8 and rounds >= 10:
-            rb_urgency = num_teams / 12.0
-            if current_round <= int(5 * rb_urgency) and rb_count < 1:
-                rb_candidates = [p for p in candidates if p.position == "RB"]
-                if rb_candidates:
-                    return max(
-                        rb_candidates,
-                        key=lambda player: (
-                            player.vorp,
-                            player.value_vs_adp or 0.0,
-                            player.proj_points,
-                            -(player.adp or 999.0),
-                            player.player_id,
-                        ),
-                    ).player_id
-            if current_round <= int(8 * rb_urgency) and rb_count < 2:
-                rb_candidates = [p for p in candidates if p.position == "RB"]
-                if rb_candidates:
-                    return max(
-                        rb_candidates,
-                        key=lambda player: (
-                            player.vorp,
-                            player.value_vs_adp or 0.0,
-                            player.proj_points,
-                            -(player.adp or 999.0),
-                            player.player_id,
-                        ),
-                    ).player_id
-            if current_round <= int(9 * rb_urgency) and te_count < 1:
-                te_candidates = [p for p in candidates if p.position == "TE"]
-                if te_candidates:
-                    return max(
-                        te_candidates,
-                        key=lambda player: (
-                            player.vorp,
-                            player.value_vs_adp or 0.0,
-                            player.proj_points,
-                            -(player.adp or 999.0),
-                            player.player_id,
-                        ),
-                    ).player_id
+        return _select_by_vorp(candidates, value_tiebreak=True).player_id
 
-        return max(
-            candidates,
-            key=lambda player: (
-                player.vorp,
-                player.value_vs_adp or 0.0,
-                player.proj_points,
-                -(player.adp or 999.0),
-                player.player_id,
-            ),
-        ).player_id
+    if strategy == "adp_guard":
+        legal = _apply_roster_guardrails(
+            legal,
+            roster_player_ids,
+            player_by_id=player_by_id,
+            overall_pick=overall_pick,
+            num_teams=num_teams,
+            rounds=rounds,
+        )
 
-    if strategy != "adp":
+    if strategy not in {"adp", "adp_guard"}:
         raise ValueError(f"unknown draft strategy: {strategy}")
 
     def market_key(player: PlayerValuation) -> tuple[float, float, str]:
@@ -299,6 +261,56 @@ def _choose_player(
         return (market_rank + noise, market_rank, player.player_id)
 
     return min(legal, key=market_key).player_id
+
+
+def _select_by_vorp(
+    players: list[PlayerValuation],
+    *,
+    value_tiebreak: bool = False,
+) -> PlayerValuation:
+    return max(
+        players,
+        key=lambda player: (
+            player.vorp,
+            (player.value_vs_adp or 0.0) if value_tiebreak else 0.0,
+            player.proj_points,
+            -_market_rank(player),
+            player.player_id,
+        ),
+    )
+
+
+def _apply_roster_guardrails(
+    candidates: list[PlayerValuation],
+    roster_player_ids: list[str],
+    *,
+    player_by_id: Mapping[str, PlayerValuation],
+    overall_pick: int,
+    num_teams: int,
+    rounds: int,
+) -> list[PlayerValuation]:
+    """Apply shared construction rules so ADP baselines get the same guardrails."""
+    if num_teams < 8 or rounds < 10:
+        return candidates
+
+    current_round = (overall_pick - 1) // num_teams + 1
+    rb_count = _selected_position_count(roster_player_ids, player_by_id, "RB")
+    te_count = _selected_position_count(roster_player_ids, player_by_id, "TE")
+    rb_urgency = num_teams / 12.0
+
+    if current_round <= int(5 * rb_urgency) and rb_count < 1:
+        rb_candidates = [p for p in candidates if p.position == "RB"]
+        if rb_candidates:
+            return rb_candidates
+    if current_round <= int(8 * rb_urgency) and rb_count < 2:
+        rb_candidates = [p for p in candidates if p.position == "RB"]
+        if rb_candidates:
+            return rb_candidates
+    if current_round <= int(9 * rb_urgency) and te_count < 1:
+        te_candidates = [p for p in candidates if p.position == "TE"]
+        if te_candidates:
+            return te_candidates
+    return candidates
 
 
 def _market_rank(player: PlayerValuation) -> float:

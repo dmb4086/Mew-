@@ -83,6 +83,67 @@ Result (after strategy fix — VORP-primary + positional roster guardrails):
 - Gate: **PASS**. The model wins `5 / 6` seasons and clears the `>55%`
   head-to-head threshold.
 
+## Edge Lab
+
+Command:
+
+```bash
+cd analytics
+PYTHONPATH=. .venv/bin/python -m scripts.edge_lab --seeds-per-slot 25 --enforce-edge
+```
+
+This is stricter than the Phase 3 gate. It gives ADP the same positional roster
+guardrails and asks whether the candidate strategy still wins.
+
+Result:
+
+- Matched drafts: `1,800` (`2019-2024`, 12 draft slots, 25 seeds per slot).
+- Candidate: `value_market_rb`.
+- Primary baseline: `adp_guard` (ADP drafting with the same RB/TE guardrails).
+- Strategy averages:
+  - `adp`: `1538.71`
+  - `adp_guard`: `1554.54`
+  - `vorp`: `1506.12`
+  - `value_no_guard`: `1529.29`
+  - `value`: `1600.80`
+  - `value_market_rb`: `1619.14`
+- Candidate comparisons:
+  - vs `adp`: diff `+80.44`, H2H `65.1%`, season wins `5/6`
+  - vs `adp_guard`: diff `+64.60`, H2H `63.7%`, season wins `5/6`
+  - vs `vorp`: diff `+113.02`, H2H `74.1%`, season wins `5/6`
+  - vs `value_no_guard`: diff `+89.86`, H2H `68.9%`, season wins `5/6`
+  - vs `value`: diff `+18.34`, H2H `15.2%`, season wins `4/6`
+- Edge gate: **PASS** vs `adp_guard`.
+
+Interpretation: the current edge candidate is strategy edge, not projection
+edge: ADP-aware VORP drafting plus pass-risk timing plus basic construction
+rules beats ADP with the same construction rules. The `value_market_rb` variant
+keeps VALUE logic but uses market order inside forced early RB guardrail windows.
+That fixes the previous `2024` loss. The remaining weak spot is `2019`, where
+the candidate still loses to `adp_guard`.
+
+## Edge Failure Modes
+
+Command:
+
+```bash
+cd analytics
+PYTHONPATH=. .venv/bin/python -m scripts.edge_failure_modes 2019 2024 --seeds-per-slot 25
+```
+
+Findings:
+
+- Original `value` failure: both `2019` and `2024` lost because VALUE drafted
+  about `2.6` fewer RBs than `adp_guard`, replacing them mostly with WRs. WR
+  gains did not cover the RB starter-point deficit.
+- New `value_market_rb` result:
+  - `2019`: still loses to `adp_guard` by `-75.03`, H2H `29.7%`.
+  - `2024`: now beats `adp_guard` by `+56.45`, H2H `66.3%`.
+- Remaining `2019` issue: VALUE variants over-select mid/late WRs and early TE
+  (`O.J. Howard`) while missing several market-favored RB/QB breakouts
+  (`Austin Ekeler`, `Lamar Jackson`, `Miles Sanders`). This is no longer fixed
+  by early-RB market anchoring alone.
+
 ## Gate Status
 
 - Phase 0 identity/history: real-data validation now passes for the available
@@ -97,8 +158,9 @@ Result (after strategy fix — VORP-primary + positional roster guardrails):
   Spearman gate passes using the internal preseason baseline. Tier bootstrap
   stability remains a separate validation item.
 - Phase 3 backtest: harness is built and **passes the trust gate** (5/6 season
-  wins, 62.1% H2H). The edge came from strategy fixes (VORP-primary drafting +
-  roster guardrails) rather than projection accuracy improvements.
+  wins, 62.1% H2H). The stricter Edge Lab also passes against `adp_guard`
+  (5/6 season wins, 63.7% H2H) with the `value_market_rb` candidate, so the
+  current candidate edge is strategy edge rather than projection edge.
 - Phase 4 simulator: deterministic unit gates pass. Calibration gate passes:
   Brier score 0.0003, mean absolute calibration error 1.05%, on 50 random
   mid-draft scenarios against 500 independent validation simulations each.
