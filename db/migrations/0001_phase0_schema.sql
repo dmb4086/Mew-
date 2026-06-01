@@ -67,9 +67,10 @@ create table if not exists ff.adp (
     source_id   text,               -- raw id before/if resolution fails
     adp         numeric not null,   -- average draft position
     adp_rank    int,                -- positional or overall rank if provided
-    sample_size int,
-    primary key (snapshot_id, coalesce(player_id, -1), coalesce(source_id, ''))
+    sample_size int
 );
+create unique index if not exists adp_pk_idx
+    on ff.adp (snapshot_id, coalesce(player_id, -1), coalesce(source_id, ''));
 
 create table if not exists ff.projection (
     snapshot_id bigint not null references ff.snapshot(snapshot_id) on delete cascade,
@@ -79,26 +80,29 @@ create table if not exists ff.projection (
     -- recompute fantasy points. Optionally cache a fantasy_points for one format.
     stat_line   jsonb not null default '{}'::jsonb,
     fantasy_points numeric,
-    scoring_format text,            -- describes fantasy_points if cached
-    primary key (snapshot_id, coalesce(player_id, -1), coalesce(source_id, ''))
+    scoring_format text            -- describes fantasy_points if cached
 );
+create unique index if not exists projection_pk_idx
+    on ff.projection (snapshot_id, coalesce(player_id, -1), coalesce(source_id, ''));
 
 create table if not exists ff.depth_chart (
     snapshot_id bigint not null references ff.snapshot(snapshot_id) on delete cascade,
     player_id   bigint references ff.player(player_id),
     team        text not null,
     position    text not null,
-    depth_order int,                -- 1 = starter
-    primary key (snapshot_id, coalesce(player_id, -1), team, position)
+    depth_order int                -- 1 = starter
 );
+create unique index if not exists depth_chart_pk_idx
+    on ff.depth_chart (snapshot_id, coalesce(player_id, -1), team, position);
 
 create table if not exists ff.injury (
     snapshot_id bigint not null references ff.snapshot(snapshot_id) on delete cascade,
     player_id   bigint references ff.player(player_id),
     status      text,               -- Out/Doubtful/Questionable/IR/...
-    detail      text,
-    primary key (snapshot_id, coalesce(player_id, -1))
+    detail      text
 );
+create unique index if not exists injury_pk_idx
+    on ff.injury (snapshot_id, coalesce(player_id, -1));
 
 -- ---------------------------------------------------------------------------
 -- Historical truth: actual weekly stats (for backtesting & scoring gate).

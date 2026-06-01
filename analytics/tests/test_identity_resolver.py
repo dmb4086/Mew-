@@ -7,6 +7,8 @@ or database — the crosswalk is an in-memory fixture.
 
 from __future__ import annotations
 
+from time import perf_counter
+
 import pytest
 
 from ffdraft.identity import IdentityResolver, normalize_name
@@ -91,6 +93,79 @@ def test_position_disambiguates_duplicate_names(crosswalk):
     wr = r.resolve(source="adp:x", source_id="b", name="Michael Carter", position="WR")
     assert rb.gsis_id == "00-0099999"
     assert wr.gsis_id == "00-0088888"
+
+
+def test_ambiguous_exact_name_without_position_fails_closed(crosswalk):
+    r = IdentityResolver(crosswalk)
+
+    res = r.resolve(source="adp:x", source_id="a", name="Michael Carter")
+
+    assert res.gsis_id is None
+    assert res.method == "unresolved"
+    assert res.confidence == 0.0
+
+
+def test_same_name_same_position_collision_fails_closed():
+    r = IdentityResolver(
+        [
+            {"gsis_id": "wr-old", "full_name": "Mike Williams", "position": "WR"},
+            {"gsis_id": "wr-new", "full_name": "Mike Williams", "position": "WR"},
+        ]
+    )
+
+    res = r.resolve(source="adp:x", source_id="a", name="Mike Williams", position="WR")
+
+    assert res.gsis_id is None
+    assert res.method == "unresolved"
+
+
+def test_common_name_change_alias_resolves():
+    r = IdentityResolver(
+        [
+            {"gsis_id": "00-002", "full_name": "Chad Ochocinco", "position": "WR"},
+        ]
+    )
+
+    assert r.resolve(source="adp:x", source_id="a", name="Chad Ochocinco", position="WR").gsis_id
+    # Unknown historic/legal names should not silently attach to the wrong row
+    # until an explicit alias is added.
+    assert r.resolve(source="adp:x", source_id="b", name="Chad Johnson", position="WR").gsis_id is None
+
+
+def test_rookie_not_yet_in_crosswalk_is_unresolved():
+    r = IdentityResolver(crosswalk=[])
+
+    res = r.resolve(source="adp:x", source_id="rookie-1", name="Future Rookie", position="RB")
+
+    assert res.gsis_id is None
+    assert res.method == "unresolved"
+
+
+def test_direct_id_resolution_exceeds_live_draft_throughput_floor():
+    crosswalk = [
+        {
+            "gsis_id": f"p{i}",
+            "full_name": f"Player {i}",
+            "position": ("QB", "RB", "WR", "TE")[i % 4],
+            "sleeper_id": str(i),
+        }
+        for i in range(8000)
+    ]
+    resolver = IdentityResolver(crosswalk)
+    lookups = 20_000
+
+    started = perf_counter()
+    for i in range(lookups):
+        result = resolver.resolve(
+            source="sleeper",
+            source_id=str(i % len(crosswalk)),
+            name=f"Player {i % len(crosswalk)}",
+            position=("QB", "RB", "WR", "TE")[i % 4],
+        )
+        assert result.gsis_id is not None
+    elapsed = perf_counter() - started
+
+    assert lookups / elapsed > 10_000
 
 
 def test_unresolved_when_no_id_and_no_name_match(crosswalk):
