@@ -164,9 +164,9 @@ class IdentityResolver:
                     return pos_hits[0], 100.0
             if len(candidates) == 1:
                 return candidates[0][0], 100.0
-            # Ambiguous exact name with no clean position split: take first but
-            # flag with a slightly reduced score so the audit sees it.
-            return candidates[0][0], 95.0
+            # Ambiguous exact names are dangerous: a visible unresolved record is
+            # better than silently attaching ADP to the wrong player.
+            return None
 
         # True fuzzy search over the normalized-name keyspace.
         choice = process.extractOne(
@@ -178,9 +178,12 @@ class IdentityResolver:
         candidates = self._name_index[matched_norm]
         if position:
             pos_hits = [g for g, p in candidates if p == position]
-            if pos_hits:
+            if len(pos_hits) == 1:
                 return pos_hits[0], score
-        return candidates[0][0], score
+            return None
+        if len(candidates) == 1:
+            return candidates[0][0], score
+        return None
 
     def name_for(self, gsis_id: str) -> str:
         return self._gsis_to_name.get(gsis_id, "")

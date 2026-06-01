@@ -44,16 +44,36 @@ def load_ffc_adp(
     if payload.get("status") != "Success":
         raise ValueError(f"FFC ADP request failed: {payload!r}")
 
-    players = [
-        FFCAdpPlayer(
-            player_id=str(row["player_id"]),
-            name=str(row["name"]),
-            position=str(row["position"]),
-            team=row.get("team"),
-            adp=float(row["adp"]),
-            adp_formatted=row.get("adp_formatted"),
-            times_drafted=row.get("times_drafted"),
+    raw_players = payload.get("players", [])
+    if not isinstance(raw_players, list):
+        raise ValueError("FFC ADP response field 'players' must be a list")
+
+    players: list[FFCAdpPlayer] = []
+    for idx, row in enumerate(raw_players):
+        if not isinstance(row, dict):
+            raise ValueError(f"FFC ADP player row {idx} must be an object")
+        player_id = row.get("player_id")
+        name = str(row.get("name") or "").strip()
+        position = str(row.get("position") or "").strip()
+        adp = row.get("adp")
+        if player_id in (None, ""):
+            raise ValueError(f"FFC ADP player row {idx} missing player_id")
+        if not name:
+            raise ValueError(f"FFC ADP player row {idx} missing name")
+        if not position:
+            raise ValueError(f"FFC ADP player row {idx} missing position")
+        if adp is None:
+            raise ValueError(f"FFC ADP player row {idx} missing adp")
+
+        players.append(
+            FFCAdpPlayer(
+                player_id=str(player_id),
+                name=name,
+                position=position,
+                team=row.get("team"),
+                adp=float(adp),
+                adp_formatted=row.get("adp_formatted"),
+                times_drafted=row.get("times_drafted"),
+            )
         )
-        for row in payload.get("players", [])
-    ]
     return dict(payload.get("meta") or {}), players

@@ -42,6 +42,18 @@ _FUMBLE_LOST_COLUMNS = (
     "receiving_fumbles_lost",
 )
 
+REQUIRED_NFLVERSE_WEEKLY_COLUMNS = frozenset(_NFLVERSE_TO_SCORING_KEYS) | frozenset(
+    _FUMBLE_LOST_COLUMNS
+)
+
+
+def validate_nflverse_weekly_schema(columns: object) -> None:
+    """Fail fast when upstream nflverse weekly stat column names drift."""
+    present = {str(c) for c in columns}
+    missing = sorted(REQUIRED_NFLVERSE_WEEKLY_COLUMNS - present)
+    if missing:
+        raise ValueError(f"nflverse weekly stats missing expected columns: {missing}")
+
 
 def nflverse_weekly_to_stat_line(row: Mapping[str, object]) -> dict[str, float]:
     """Translate one nflverse weekly stat row to scoring-engine keys."""

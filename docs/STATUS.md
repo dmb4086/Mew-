@@ -1,6 +1,6 @@
 # Project Status & Handoff
 
-_Last updated: 2026-05-31. Branch: `claude/fantasy-draft-system-w4j8X`._
+_Last updated: 2026-06-01. Branch: `claude/fantasy-draft-system-w4j8X`._
 
 This is the living "where are we / what's next" doc. Read
 [`VISION.md`](VISION.md) first for the full architecture and the phased plan with
@@ -12,11 +12,11 @@ numeric green-light gates; this doc tracks execution against it.
 
 - We are building a deterministic fantasy-draft copilot. **Math decides, the LLM
   only explains.** Every phase has a numeric gate — no "looks right to me."
-- **Phases 0, 1, 2, 4 are built and unit-tested** (30 tests, all green, no network
+- **Phases 0, 1, 2, 4 are built and unit-tested** (42 tests, all green, no network
   or DB required). Run them with `cd analytics && PYTHONPATH=. python -m pytest`.
 - A real-data validator now checks public historical data; latest run validated
-  2019-2024 nflverse scoring/totals and resolved 1,028/1,028 historical ADP
-  records. It also validates the internal projection baseline: VORP beats raw
+  2019-2024 nflverse scoring/totals and resolved 1,021/1,028 historical ADP
+  records after failing closed on ambiguous name collisions. It also validates the internal projection baseline: VORP beats raw
   projected points in 6/6 held-out seasons. See [`VALIDATION.md`](VALIDATION.md).
 - The whole **edge-producing core (valuation, simulation, backtest) runs on
   historical data** and does NOT need the live league. Only Phase 5 (live sync)
@@ -31,7 +31,7 @@ numeric green-light gates; this doc tracks execution against it.
 
 | Phase | Status | Where | Gate status |
 |------|--------|-------|-------------|
-| 0 — Data spine + identity | **Code built**; live ingest not yet run | `db/migrations/0001_phase0_schema.sql`, `ffdraft/identity/`, `ffdraft/sleeper/`, `ffdraft/nflverse/`, `scripts/` | Unit tests pass. Real-data validator resolves 1,028/1,028 FFC ADP records and recomputes top-100 season totals exactly. **DB ingestion run still pending**. |
+| 0 — Data spine + identity | **Code built**; live ingest not yet run | `db/migrations/0001_phase0_schema.sql`, `ffdraft/identity/`, `ffdraft/sleeper/`, `ffdraft/nflverse/`, `scripts/` | Unit tests pass. Real-data validator resolves 1,021/1,028 FFC ADP records, leaves ambiguous name collisions unresolved, and recomputes top-100 season totals exactly. **DB ingestion run still pending**. |
 | 1 — League model + scoring | **Built** | `ffdraft/scoring/` | Unit gate passes. Real-data validator reproduces 105,480 nflverse PPR weekly rows exactly. **Live Sleeper decimal-match gate pending** real league settings. |
 | 2 — Valuation engine | **Built** | `ffdraft/valuation/`, `ffdraft/projections/` | Unit gates pass. Held-out Spearman gate passes with internal projections (6/6 seasons). **Tier bootstrap-stability gate pending**. |
 | 3 — Backtest harness | Not started | — | Historical ADP + internal projection baseline available; needs full draft/roster harness. |
@@ -44,7 +44,7 @@ numeric green-light gates; this doc tracks execution against it.
 ```bash
 cd analytics
 pip install -e ".[dev]"          # or: pip install pytest rapidfuzz python-dotenv pydantic
-PYTHONPATH=. python -m pytest     # 30 tests, all green
+PYTHONPATH=. python -m pytest     # 42 tests, all green
 ```
 The tests ARE the gates. They run with zero network/DB.
 

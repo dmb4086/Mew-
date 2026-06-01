@@ -31,6 +31,7 @@ from ffdraft.scoring import (
     nflverse_weekly_to_stat_line,
     score_stat_line,
 )
+from ffdraft.scoring.nflverse import validate_nflverse_weekly_schema
 from ffdraft.validation import spearman_rank_correlation
 from ffdraft.valuation import PlayerProjection, value_players
 
@@ -52,6 +53,7 @@ def _regular_rows(df):
 
 def validate_weekly_scoring(seasons: list[int]) -> dict[str, float | int]:
     weekly = load_weekly_stats(seasons)
+    validate_nflverse_weekly_schema(weekly.columns)
     mismatches: list[tuple[str, int, int, float, float]] = []
     checked = 0
     for row in _regular_rows(weekly):
