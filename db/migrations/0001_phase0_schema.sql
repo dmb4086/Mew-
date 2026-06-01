@@ -108,14 +108,15 @@ create unique index if not exists injury_pk_idx
 -- Historical truth: actual weekly stats (for backtesting & scoring gate).
 -- ---------------------------------------------------------------------------
 create table if not exists ff.player_week_stats (
-    player_id   bigint not null references ff.player(player_id),
-    season      int    not null,
-    week        int    not null,
-    team        text,
-    opponent    text,
-    stat_line   jsonb  not null default '{}'::jsonb,  -- raw counting stats
-    source      text   not null default 'nflverse',
-    loaded_at   timestamptz not null default now(),
+    player_id     bigint not null references ff.player(player_id),
+    season        int    not null,
+    week          int    not null,
+    season_type   text   not null default 'REG',      -- REG | PRE | POST
+    team          text,
+    opponent      text,
+    stat_line     jsonb  not null default '{}'::jsonb,  -- raw counting stats
+    source        text   not null default 'nflverse',
+    loaded_at     timestamptz not null default now(),
     primary key (player_id, season, week, source)
 );
 create index if not exists pws_season_week_idx on ff.player_week_stats (season, week);

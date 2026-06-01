@@ -57,7 +57,15 @@ def main() -> None:
 
                 resolved = 0
                 unresolved = 0
+                # DEF (team defense) and K/PK (kickers) are not in the nflverse
+                # player crosswalk, so we skip them from the identity spine. They
+                # can be added later as special roster-slot entities if needed.
+                _SKIP_POSITIONS = {"DEF", "K", "PK"}
+
                 for p in players:
+                    if p.position in _SKIP_POSITIONS:
+                        continue
+
                     alias = resolver.resolve(
                         source="adp:ffc",
                         source_id=p.player_id,

@@ -31,7 +31,7 @@ numeric green-light gates; this doc tracks execution against it.
 
 | Phase | Status | Where | Gate status |
 |------|--------|-------|-------------|
-| 0 — Data spine + identity | **Code built**; live ingest not yet run | `db/migrations/0001_phase0_schema.sql`, `ffdraft/identity/`, `ffdraft/sleeper/`, `ffdraft/nflverse/`, `scripts/` | Unit tests pass. Real-data validator resolves 1,028/1,028 FFC ADP records and recomputes top-100 season totals exactly. **DB ingestion run still pending**. |
+| 0 — Data spine + identity | **Built + ingested + validated** | `db/migrations/0001_phase0_schema.sql`, `ffdraft/identity/`, `ffdraft/nflverse/`, `scripts/` | Unit tests pass. DB contains 7,963 players, 104,447 weekly stats, 1,028 ADP records. **Three DB validation gates pass:** identity resolution 100% (offensive players), scoring decimal-match 99,783/99,783 rows, season totals 600/600 top-100 players. |
 | 1 — League model + scoring | **Built** | `ffdraft/scoring/` | Unit gate passes. Real-data validator reproduces 105,480 nflverse PPR weekly rows exactly. **Live Sleeper decimal-match gate pending** real league settings. |
 | 2 — Valuation engine | **Built** | `ffdraft/valuation/`, `ffdraft/projections/` | Unit gates pass. Held-out Spearman gate passes with internal projections (6/6 seasons). **Tier bootstrap-stability gate pending**. |
 | 3 — Backtest harness | Not started | — | Historical ADP + internal projection baseline available; needs full draft/roster harness. |
@@ -46,12 +46,24 @@ cd analytics
 pip install -e ".[dev]"          # or: pip install pytest rapidfuzz python-dotenv pydantic
 PYTHONPATH=. python -m pytest     # 30 tests, all green
 ```
-The tests ARE the gates. They run with zero network/DB.
+The unit tests ARE the gates. They run with zero network/DB.
 
-Real-data validator:
+**Real-data validators (require network + DB):**
 ```bash
 cd analytics
+
+# Phase 0: network-only validation (reads from APIs directly)
 PYTHONPATH=. python -m scripts.validate_real_data
+
+# Phase 0: DB-backed validation gates (reads from Postgres)
+PYTHONPATH=. python -m scripts.validate_db_gates
+
+# Individual gates
+PYTHONPATH=. python -m scripts.validate_db_identity_resolution
+PYTHONPATH=. python -m scripts.validate_db_scoring
+
+# Export a hand-check sample for gate (a)
+PYTHONPATH=. python -m scripts.export_identity_audit_sample 50
 ```
 
 ---
@@ -92,6 +104,19 @@ PYTHONPATH=. python -m scripts.validate_real_data
 
 ---
 
+## Database setup
+
+Local Postgres is running and populated. See [`DB_SETUP.md`](DB_SETUP.md) for
+connection details, Supabase Studio setup, and example queries.
+
+```bash
+# Quick connect
+psql -h localhost -p 5432 -U $(whoami) -d ffdraft
+
+# Run all DB validation gates
+PYTHONPATH=. python -m scripts.validate_db_gates
+```
+
 ## Recommended next steps (in priority order)
 
 These are ordered so nothing waits on the live league.
@@ -100,15 +125,11 @@ These are ordered so nothing waits on the live league.
    internal preseason projection baseline are now available. Next, simulate
    draft strategies (ADP-only vs. VORP/simulator-driven), build rosters, and
    score starter points against actual season outcomes.
-2. **Run live ingestion (Phase 0/1 live gates).** Stand up Supabase, apply
-   `db/migrations/0001_phase0_schema.sql`, run `scripts/ingest_nflverse.py`,
-   then add a scoring-gate test that reproduces nflverse `fantasy_points_ppr`
-   from raw stats to the decimal.
-3. **Wire Phase 4 into the Recommendation Object shape.** The simulator now
+2. **Wire Phase 4 into the Recommendation Object shape.** The simulator now
    emits per-player survival odds and ranked pick scores from VORP +
    availability risk. Define the typed object and tool interfaces that Phase 5's
    LLM advisor will consume, still against synthetic draft state.
-4. **Phase 4 calibration gate** — once historical draft boards are ingested,
+3. **Phase 4 calibration gate** — once historical draft boards are ingested,
    bucket survival predictions and calculate the reliability curve + Brier score
    promised in `VISION.md`.
 

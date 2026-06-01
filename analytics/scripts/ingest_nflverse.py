@@ -96,15 +96,18 @@ def ingest_weekly(conn, seasons: list[int]) -> int:
                 k: r[k] for k in stat_cols
                 if r.get(k) is not None and not (isinstance(r[k], float) and r[k] != r[k])
             }
+            season_type = r.get("season_type") or "REG"
             cur.execute(
                 """
                 insert into ff.player_week_stats
-                    (player_id, season, week, team, opponent, stat_line, source)
-                values (%s, %s, %s, %s, %s, %s, 'nflverse')
+                    (player_id, season, week, season_type, team, opponent, stat_line, source)
+                values (%s, %s, %s, %s, %s, %s, %s, 'nflverse')
                 on conflict (player_id, season, week, source)
-                do update set stat_line = excluded.stat_line, loaded_at = now()
+                do update set stat_line = excluded.stat_line,
+                              season_type = excluded.season_type,
+                              loaded_at = now()
                 """,
-                (hit[0], r.get("season"), r.get("week"),
+                (hit[0], r.get("season"), r.get("week"), season_type,
                  r.get("recent_team") or r.get("team"), r.get("opponent_team"),
                  json.dumps(stat_line, default=_json_default)),
             )

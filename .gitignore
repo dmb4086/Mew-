@@ -26,3 +26,11 @@ data/
 .DS_Store
 .idea/
 .vscode/
+
+# Validation output (generated CSVs)
+analytics/validation_output/
+
+# Supabase local artifacts
+supabase/.branches
+supabase/.temp
+supabase/.env
