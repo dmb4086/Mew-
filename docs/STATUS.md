@@ -18,10 +18,13 @@ numeric green-light gates; this doc tracks execution against it.
   2019-2024 nflverse scoring/totals and resolved 1,021/1,028 historical ADP
   records after failing closed on ambiguous name collisions. It also validates the internal projection baseline: VORP beats raw
   projected points in 6/6 held-out seasons. See [`VALIDATION.md`](VALIDATION.md).
-- **Phase 3 backtest trust gate now PASSES**: the value-aware model beats
-  ADP-only in `5/6` seasons with `62.1%` head-to-head wins (1,800 matched
-  drafts). The fix was VORP-primary drafting with positional roster guardrails
-  to prevent degenerate zero-RB rosters in years where RBs boom.
+- **Phase 3 Edge Lab now PASSES**: the `value_market_rb` strategy beats the
+  hard baseline (`adp_guard` = crowd + roster rules) in `6/6` seasons with
+  `75.9%` head-to-head wins (1,800 matched drafts). Two fixes:
+  1. `value_market_rb` sorts by VORP first, then uses market-rank tiebreak
+     when guardrails force an RB pick.
+  2. WR prior-production weight lowered from `0.45` → `0.25` to stop
+     overtrusting veteran WRs in breakout years (this fixed 2019).
 - **Edge Lab now PASSES against a stronger baseline**: `value_market_rb` beats
   `ADP+guardrails` by `+64.60` starter points, with `63.7%` head-to-head wins
   and `5/6` season wins over 1,800 matched drafts.

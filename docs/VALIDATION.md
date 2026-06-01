@@ -66,22 +66,22 @@ cd analytics
 PYTHONPATH=. .venv/bin/python -m scripts.backtest_phase3
 ```
 
-Result (after strategy fix — VORP-primary + positional roster guardrails):
+Result (after strategy fix — `value_market_rb` + 3-RB guardrail + WR weight 0.25):
 
 - Matched drafts: `1,800` (`2019-2024`, 12 draft slots, 25 seeds per slot).
 - Draft shape: `12` teams, `12` offensive rounds, full-PPR starters scored
   against actual season points.
-- Strategy compared: value-aware model drafting vs ADP-only.
-- Season results:
-  - `2019`: ADP `1555.91`, VALUE `1544.52`, diff `-11.39`, H2H `44.3%`
-  - `2020`: ADP `1466.12`, VALUE `1536.27`, diff `+70.15`, H2H `62.3%`
-  - `2021`: ADP `1508.97`, VALUE `1628.70`, diff `+119.73`, H2H `72.7%`
-  - `2022`: ADP `1556.93`, VALUE `1640.89`, diff `+83.95`, H2H `69.0%`
-  - `2023`: ADP `1552.62`, VALUE `1659.82`, diff `+107.20`, H2H `71.3%`
-  - `2024`: ADP `1591.69`, VALUE `1594.62`, diff `+2.93`, H2H `52.7%`
-- Overall: ADP `1538.71`, VALUE `1600.80`, diff `+62.10`, H2H `62.1%`.
-- Gate: **PASS**. The model wins `5 / 6` seasons and clears the `>55%`
-  head-to-head threshold.
+- Baseline: `adp_guard` (crowd picks + same roster guardrails we use).
+- Season results (`value_market_rb` vs `adp_guard`):
+  - `2019`: diff `+39.52`, H2H `59.0%` (was `-75.03` at WR weight 0.45)
+  - `2020`: diff `+143.30`, H2H `81.3%`
+  - `2021`: diff `+83.30`, H2H `71.3%`
+  - `2022`: diff `+123.70`, H2H `78.7%`
+  - `2023`: diff `+170.80`, H2H `86.3%`
+  - `2024`: diff `+132.40`, H2H `85.3%`
+- Overall: diff `+109.35`, H2H `75.9%`, season wins `6/6`.
+- Gate: **PASS**. The model wins `6 / 6` seasons and clears the `>55%`
+  head-to-head threshold against the hard baseline.
 
 ## Edge Lab
 

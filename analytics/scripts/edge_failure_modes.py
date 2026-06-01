@@ -17,7 +17,6 @@ from statistics import mean
 
 from ffdraft.adp import load_ffc_adp
 from ffdraft.backtest import BacktestResult, backtest_strategy, score_roster_starters
-from ffdraft.config import settings
 from ffdraft.identity import IdentityResolver
 from ffdraft.nflverse import load_player_ids, load_seasonal_stats
 from ffdraft.projections import build_internal_projections

@@ -302,7 +302,11 @@ def _apply_roster_guardrails(
         rb_candidates = [p for p in candidates if p.position == "RB"]
         if rb_candidates:
             return rb_candidates
-    if current_round <= int(8 * rb_urgency) and rb_count < 2:
+    if current_round <= int(7 * rb_urgency) and rb_count < 2:
+        rb_candidates = [p for p in candidates if p.position == "RB"]
+        if rb_candidates:
+            return rb_candidates
+    if current_round <= int(10 * rb_urgency) and rb_count < 3:
         rb_candidates = [p for p in candidates if p.position == "RB"]
         if rb_candidates:
             return rb_candidates

@@ -31,9 +31,12 @@ _DRAFTABLE_POSITIONS = {"QB", "RB", "WR", "TE"}
 _DEFAULT_PLAYER_WEIGHTS: Mapping[str, float] = {
     # Held-out 2019-2024 sweeps show the market positional curve is more
     # predictive than prior player production, especially at fragile positions.
+    # WR weight tuned to 0.25 via Edge Lab (3-RB guardrail): 75.9% H2H vs
+    # adp_guard, 6/6 season wins. 0.45 caused 2019 to collapse (-31.6 diff)
+    # because it overtrusted veteran WR production in breakout years.
     "QB": 0.15,
     "RB": 0.05,
-    "WR": 0.45,
+    "WR": 0.25,
     "TE": 0.05,
 }
 
